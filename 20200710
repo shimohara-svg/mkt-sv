@@ -1,0 +1,1171 @@
+Option Explicit
+Public n As Long
+Public counter As Long
+Public StartFlag As Boolean
+Public Run_Flag As Boolean
+Public FilePath As String 'ログ用ファイルパス
+Public FileName As String 'ログ用ファイル名
+Public FilePathJisseki As String 'PLUM2.csvが出来上がってくる場所
+Public User_Name As String
+Public SH_name As String 'ｼｰﾄ名
+Public ExcelApp As Object '20200625
+Public WBK As Workbook '20200622
+Public SH1 As Worksheet '20200622
+Public ti As Date '20200704 As Date を追加
+Public tm_value As String '20200704
+Private Declare Sub Sleep Lib "kernel32" (ByVal ms As Long) 'sleep準備
+
+
+Sub auto_open() '20200625に追加
+Set ExcelApp = CreateObject("excel.application")
+SH_name = Month(Now) & -Day(Now)
+ActiveSheet.Name = SH_name '20206029
+Dim p As Object
+Set WBK = ThisWorkbook
+Set SH1 = WBK.Worksheets(SH_name)
+Set p = CreateObject("WScript.Shell")
+p.CurrentDirectory = WBK.Path
+Set p = Nothing
+
+
+'''''Settingﾌｫﾙﾀﾞｰ内のﾃｷｽﾄﾌｧｲﾙにて各ﾊﾟﾗﾒｰﾀを取得する仕様に変更2020/07'''''
+Dim ext_res As String '各ﾌｧｲﾙの存在結果はｺｺにまとめて格納
+
+
+'Settingﾌｫﾙﾀﾞｰの有無を確認。無ければ終了。
+Dim st_pass As String
+st_pass = CurDir & "\setting"
+ext_res = Dir(st_pass, vbDirectory)
+If ext_res = "" Then
+MsgBox ("Setting ﾌｫﾙﾀﾞｰが見つかりませんでした。")
+Call Auto_Close
+Else
+End If
+
+'settingﾌｫﾙﾀﾞｰ内のﾕｰｻﾞｰ名ﾃｷｽﾄの有無を確認。無ければ終了
+Dim user_name_txt_pass As String
+user_name_txt_pass = CurDir & "\setting\user_name.txt"
+ext_res = Dir(user_name_txt_pass, vbDirectory)
+If ext_res = "" Then
+MsgBox ("user_name ﾃｷｽﾄが見つかりませんでした。")
+Call Auto_Close
+Else
+End If
+
+
+'Settingﾌｫﾙﾀﾞｰに必要な外部ﾌｧｲﾙを集約する。
+Open (user_name_txt_pass) For Input As #1 '20200704
+Line Input #1, User_Name '20200704
+'MsgBox (User_Name) 'ﾃﾞﾊﾞｯｸﾞ用
+Close #1 '20200704
+
+
+'settingﾌｫﾙﾀﾞｰ内のtm_valueﾃｷｽﾄの有無を確認。無ければ終了
+Dim tm_value_txt_pass As String
+tm_value_txt_pass = CurDir & "\setting\tm_value.txt"
+ext_res = Dir(tm_value_txt_pass, vbDirectory)
+If ext_res = "" Then
+MsgBox ("tm_value ﾃｷｽﾄが見つかりませんでした。")
+Call Auto_Close
+Else
+End If
+
+
+'timeValueを外部ﾌｫﾙﾀﾞから取得するよう変更。
+Open (tm_value_txt_pass) For Input As #1 '20200704
+Line Input #1, tm_value '20200704
+'MsgBox (tm_value) 'ﾃﾞﾊﾞｯｸﾞ用
+Close #1 '20200704
+
+
+'FilePath = CurDir & "\Log" 'Log用ﾌｧｲﾙﾊﾟｽ
+'FileName = "PLUM2_umetani" & -Year(Now) & -Month(Now) & -Day(Now) & ".xls" 'Log用ﾌｧｲﾙ名
+'FilePathJisseki = CurDir
+
+
+
+Set SH1 = Nothing
+Set WBK = Nothing
+On Error GoTo 0
+End Sub
+
+Sub kaishi()
+On Error GoTo 0 '20200625
+
+If StartFlag = False Then '20200704
+    Call Gamen_Shokika '文字のクリア
+    Set WBK = ThisWorkbook '20200622
+    Set SH1 = WBK.Worksheets(SH_name) '20200622
+    
+    Application.ScreenUpdating = False
+    
+    
+    'ネットワークパスの取得
+    ' On Error Resume Next 20200623
+    ' With CreateObject("WScript.Shell") 20200623
+    ' .CurrentDirectory = ThisWorkbook.Path 20200623
+    ' End With 20200623
+    ' On Error GoTo 0 20200623
+     
+     
+     
+    'ネットワークパスの取得 (new) '20200623
+    'Dim p As Object '20200623
+    'Set p = CreateObject("WScript.Shell") '20200623
+    'p.CurrentDirectory = WBK.Path '20200623
+    'Set p = Nothing '20200623
+    'On Error GoTo 0 '20200623
+
+    
+    '現地作業用
+    'ユーザー名
+    'ここを変えるだけ
+    'User_Name = "taro.okazaki" '20200704
+    
+    
+    
+    FilePath = CurDir & "\Log"
+    FileName = "PLUM2_umetani" & -Year(Now) & -Month(Now) & -Day(Now) & ".xls"
+    'FilePathJisseki = CurDir
+    n = 3 '行セレクト用
+    
+    
+    'Rows(n + 1).Select '開始時点で3行目がセレクトされる
+    'Range(Cells(n + 1, 1), Cells(n + 1, 11)).Select '開始時点で3行目がセレクトされる
+    
+    
+    SH1.Range(SH1.Cells(n + 1, 1), SH1.Cells(n + 1, 11)).Select '20200622
+    
+    ActiveWindow.FreezePanes = True
+    StartFlag = True
+    Set SH1 = Nothing '20200622
+    Set WBK = Nothing '20200623
+    Call Lamp(StartFlag)
+    '/////// Log用フォルダがあるかないか ⇒ なければ作成 /////////
+    Dim DirectoryExist, DirectoryPath As String
+    DirectoryPath = FilePath
+    DirectoryExist = Dir(DirectoryPath, vbDirectory)
+    If DirectoryExist = "" Then
+       MkDir FilePath
+    Else
+    End If
+    
+    '/////// Log用ファイル(エクセルシート)があるかないか ⇒ なければ作成 /////////
+    If Dir(FilePath & "\" & FileName) <> "" Then
+    Else
+    Call MakeLogFile
+    End If
+    
+    '/////// Log用フォルダがあるかないか ⇒ あれば、ログを読み込む処理 /////////
+    If Dir(FilePath & "\" & FileName) <> "" Then
+    Call ReadLog
+    Else
+    End If
+    
+    '/////// 遅延関数へ ⇒ 実績ファイル(csv 三明)を読みに行く間隔 /////////
+    Call chien
+    
+Else
+End If
+
+End Sub
+'///////***********遅延関数***********/////////
+'/////// 実績ファイル(csv 三明)を読みに行くﾀｲﾏｰ設定/////////
+Sub chien()
+On Error GoTo 0 '20200625
+
+Application.ScreenUpdating = False
+'ti = Now + TimeValue("00:00:15")
+'/////// リネーム関数へ/////////
+'Application.OnTime ti, "rename", "", False '20200622
+
+
+'ti = Now + TimeValue("00:00:15") '20200630
+ti = Now + TimeValue(tm_value) '20200630
+Application.OnTime ti, "rename", , True '20200625
+
+
+'On Error Resume Next '20200630
+
+
+'ti = DateValue("1900/01/01") '20200622
+'Application.ScreenUpdating = True '20200625
+End Sub
+'/////**********リネーム関数************/////////
+Sub rename()
+On Error GoTo 0 '20200625
+
+
+ti = DateValue("1900/01/01") '20200630
+On Error Resume Next '20200630
+Application.OnTime ti, "rename", , False '20200630
+
+
+
+
+'ti = Now + TimeValue("00:00:01") '20200629
+'On Error Resume Next '20200629
+'Application.OnTime ti, "rename", , False '20200629
+
+
+'blnend = True  '追加 '20170720 20200623削除
+Application.ScreenUpdating = False
+
+If Dir(CurDir & "\" & "PLUM2.csv") <> "" And Dir(CurDir & "\" & "Plum_.csv") = "" Then '/////// 実績ファイル(csv 三明)がある・リネームファイルがない/////////
+    Name CurDir & "\" & "PLUM2.csv" As CurDir & "\" & "Plum_.csv"
+    Call test
+ElseIf Dir(CurDir & "\" & "PLUM2.csv") <> "" And Dir(CurDir & "\" & "Plum_.csv") <> "" Then '/////// 実績ファイル(csv 三明)・リネームファイルが両方ある/////////
+    Call test
+ElseIf Dir(CurDir & "\" & "PLUM2.csv") = "" And Dir(CurDir & "\" & "Plum_.csv") <> "" Then '/////// 実績ファイル(csv 三明)がない・リネームファイルがある/////////
+    Call test
+Else: Call chien '/////// 実績ファイル(csv 三明)・リネームファイルが両方ない/////////
+End If
+
+'Application.ScreenUpdating = True '20200625
+
+End Sub
+
+Sub test()
+On Error GoTo 0 '20200625
+
+Dim f1 As Long '/////// リネームファイルのオープン用 ファイル番号取得/////////
+f1 = FreeFile
+
+Dim check As Variant
+Dim t As Variant
+Dim f2 As Long
+Dim wa As Workbook
+Dim wb As Workbook
+Dim sc_count As Long
+'格納用変数
+Dim junbi_t As Variant '準備時間
+Dim kadou_t As Variant '稼動時間
+Dim teishi_t As Variant '停止時間
+
+Dim buf As String, buf2 As String, tmp As Variant, st1 As Workbook '/////// buf ⇒ csvデータ(リネームファイル)項目の文字列取得用    tmp ⇒ bufの分割/////////
+  'Dim WBK As Workbook 20200622
+  'Dim SH1 As Worksheet 20200622 全てにSH1追加
+ 
+
+    Open CurDir & "\" & "Plum_.csv" For Input As #f1 '/////// リネームファイルオープン/////////
+    'Line Input #f1, buf '/////// 1行目読み飛ばし/////////
+    Do Until EOF(1)
+        Set WBK = ThisWorkbook
+        Set SH1 = WBK.Worksheets(SH_name)
+        WBK.Activate '20200623
+        Application.ScreenUpdating = False '/////// 画面更新の停止/////////
+        sc_count = sc_count + 1
+        n = n + 1 '/////// 行の更新/////////
+        Line Input #f1, buf '/////// 1行目読み込み/////////
+        tmp = Split(buf, ",")
+        'Cells(n, 1) = tmp(0) 'シリアルNo
+        SH1.Cells(n, 1).Font.Size = 9
+        SH1.Cells(n, 1) = n - 3  '連番
+        SH1.Cells(n, 2).NumberFormatLocal = "@" '20170721
+        SH1.Cells(n, 2) = CVar(tmp(1)) 'プログラム名
+        
+        
+        '開始時刻(時間のみ)
+        SH1.Cells(n, 3).NumberFormatLocal = "@"
+        'Cells(n, 3) = Mid(tmp(3), 1, 4) & "/" & Mid(tmp(3), 5, 2) & "/" & Mid(tmp(3), 7, 2) & "/" & Mid(tmp(3), 9, 2) & ":" & Mid(tmp(3), 11, 2) & ":" & Mid(tmp(3), 13, 2)
+        SH1.Cells(n, 3) = Mid(tmp(3), 9, 2) & ":" & Mid(tmp(3), 11, 2) & ":" & Mid(tmp(3), 13, 2)
+        '終了時刻(時間のみ)
+        SH1.Cells(n, 4).NumberFormatLocal = "@"
+        'Cells(n, 4) = Mid(tmp(4), 1, 4) & "/" & Mid(tmp(4), 5, 2) & "/" & Mid(tmp(4), 7, 2) & "/" & Mid(tmp(4), 9, 2) & ":" & Mid(tmp(4), 11, 2) & ":" & Mid(tmp(4), 13, 2)
+        SH1.Cells(n, 4) = Mid(tmp(4), 9, 2) & ":" & Mid(tmp(4), 11, 2) & ":" & Mid(tmp(4), 13, 2)
+        '準備時間
+        SH1.Cells(n, 5).NumberFormatLocal = "h:mm:ss"
+        t = Right("00000" & tmp(5), 5)
+        check = Left(t, 1) & ":" & Mid(t, 2, 2) & ":" & Right(t, 2)
+        SH1.Cells(n, 5) = check
+        '稼動時間
+        SH1.Cells(n, 6).NumberFormatLocal = "h:mm:ss"
+        t = Right("00000" & tmp(6), 5)
+        check = Left(t, 1) & ":" & Mid(t, 2, 2) & ":" & Right(t, 2)
+        SH1.Cells(n, 6) = check
+        
+        '停止時間
+        SH1.Cells(n, 7).NumberFormatLocal = "h:mm:ss"
+        t = Right("00000" & tmp(7), 5)
+        check = Left(t, 1) & ":" & Mid(t, 2, 2) & ":" & Right(t, 2)
+        SH1.Cells(n, 7) = check
+         '運転時間計算(準備時間＋稼動時間＋停止時間)
+        SH1.Cells(n, 10).NumberFormatLocal = "h:mm:ss"
+        SH1.Cells(n, 10) = SH1.Cells(n, 5) + SH1.Cells(n, 6) + SH1.Cells(n, 7)
+        
+        '要望により変更
+        '通紙枚数
+        SH1.Cells(n, 8) = tmp(2)
+        
+        '平均速度計算(通紙枚数÷稼動時間)
+        check = SH1.Cells(n, 6) * 24 * 60
+        If check = 0 Then
+           SH1.Cells(n, 9) = 0
+           SH1.Cells(n, 9).Interior.Color = RGB(255, 255, 0)
+        Else
+        SH1.Cells(n, 9) = Application.WorksheetFunction.RoundDown((SH1.Cells(n, 8) / check), 0)
+        End If
+       
+        '稼動率計算（稼動時間÷運転時間）
+        If SH1.Cells(n, 10) > 0 Then '20200622
+        SH1.Cells(n, 11) = Application.WorksheetFunction.RoundDown(((SH1.Cells(n, 6) * 24 * 60) / (SH1.Cells(n, 10) * 24 * 60)) * 100, 1)
+        End If
+        
+'        Cells(n, 9) = tmp(8) '休転時間
+'        Cells(n, 9).NumberFormatLocal = "h:mm:ss"
+'        t = Right("00000" & tmp(8), 5)
+'        check = Left(t, 1) & ":" & Mid(t, 2, 2) & ":" & Right(t, 2)
+'        Cells(n, 9) = check
+'        Cells(n, 10) = tmp(9)  '不良原因１
+'        Cells(n, 11) = tmp(10) '不良原因２
+'        Cells(n, 12) = tmp(11) '不良原因３
+'        Cells(n, 13) = tmp(12) '不良原因４
+'        Cells(n, 14) = tmp(13) '不良原因５
+'        Cells(n, 15) = tmp(14) '不良原因６
+'        Cells(n, 16) = tmp(15) '不良原因７
+'        Cells(n, 17) = tmp(16) '不良原因８
+'        Cells(n, 18) = tmp(17) '不良原因９
+'        Cells(n, 19) = tmp(18) '不良原因１０
+        
+        '最新行の選択
+        'Rows(n).Select
+        'SH1.Activate 20200623 削除
+        'SH1.Select
+         SH1.Range(SH1.Cells(n, 1), SH1.Cells(n, 11)).Select
+          '-----下へスクロール-------
+         If n > 15 Then '20170725
+           ActiveWindow.SmallScroll Down:=1 '20170725
+         Else '20170725
+         End If '20170725
+         
+         Set SH1 = Nothing
+         Set WBK = Nothing '20200623
+         
+         
+        '罫線の作成
+         Call Keisen_test(n)
+         
+         Application.ScreenUpdating = True
+
+        
+        If buf <> "" Then '/////// bufが空でなければ、LOGにも残す/////////
+        Call Write_Log(buf) '/////// bufをログに残す関数へ/////////
+        Else
+        End If
+        'Sleep 1 '20200704
+    Loop
+    
+    Close #f1
+
+    
+    Application.DisplayAlerts = False
+    Call fail_delete
+    'Application.ScreenUpdating = True '20200625
+End Sub
+Sub fail_delete()
+On Error GoTo 0 '20200625
+Application.ScreenUpdating = False
+Kill CurDir & "\" & "Plum_.csv"
+Call chien
+Application.ScreenUpdating = True
+End Sub
+Sub teishi() 'モニター終了
+On Error GoTo 0 '20200625
+Application.ScreenUpdating = False
+Call Gamen_Shokika
+Range(Cells(4, 1), Cells(4, 11)).Select
+
+'終了時､モニター中表示灯を消す
+StartFlag = False
+Lamp (StartFlag)
+Call Workbook_BeforeClose
+End Sub
+Sub MakeLogFile()
+On Error GoTo 0 '20200625
+   Dim intFileNum As Integer
+   Dim strFileName As String
+   Dim buf As String
+   Dim font1 As Font
+   intFileNum = FreeFile
+   Dim sname As String
+   
+   strFileName = FilePath & "\" & FileName
+   If Dir("strFileNmae") <> "" Then
+   Else
+   Open strFileName For Append As intFileNum
+   Application.StandardFont = "HGPｺﾞｼｯｸM"
+   Application.StandardFontSize = 10
+   Close #intFileNum
+   Call title_Copy
+   End If
+   Application.ScreenUpdating = True
+End Sub
+Sub ReadLog()
+On Error GoTo 0 '20200625
+Dim wb As Workbook
+Dim ws As Worksheet '20200625
+Dim RowCnt As Long
+Dim LastRow As Long
+RowCnt = 2 '2行目からコピー開始するから
+Application.DisplayAlerts = False
+Application.ScreenUpdating = False
+
+
+Set wb = Workbooks.Open(FileName:=FilePath & "\" & FileName)
+Set ws = wb.Worksheets("PLUM2_umetani" & -Year(Now) & -Month(Now) & -Day(Now)) '20200625
+Set WBK = ThisWorkbook '20200625
+Set SH1 = WBK.Worksheets(SH_name) '20200625
+
+
+Application.ScreenUpdating = False
+wb.Activate
+ws.Rows(2).Select
+
+If ws.Cells(2, 2) <> "" Then
+    Application.ScreenUpdating = False
+    Application.Calculation = xlCalculationManual '20170725
+    Application.EnableEvents = False '20170725
+    LastRow = ws.Cells(Rows.Count, 2).End(xlUp).Row
+            Do
+            
+            Application.ScreenUpdating = False
+            Application.Calculation = xlCalculationManual '20170725
+            Application.EnableEvents = False '20170725
+            wb.Activate
+            If LastRow < RowCnt Then
+                Application.ScreenUpdating = False
+                Exit Do
+            Else
+            End If
+            Application.ScreenUpdating = False
+            Application.Calculation = xlCalculationManual '20170725
+            'Application.EnableEvents = False '20170725 '20200625削除
+            ws.Range(Cells(RowCnt, 1), Cells(RowCnt, 11)).Copy
+            Application.ScreenUpdating = False
+            ThisWorkbook.Activate '20200625
+            'Application.ScreenUpdating = False '20200625
+            SH1.Range(Cells(RowCnt + 2, 1), Cells(RowCnt + 2, 11)).PasteSpecial Paste:=xlPasteAll
+            'Cells(RowCnt + 2, 2).NumberFormatLocal = "@" '20170719
+            Application.ScreenUpdating = False
+            SH1.Range(Cells(RowCnt + 2, 1), Cells(RowCnt + 2, 11)).Select
+            Call Keisen_read(RowCnt)
+            Application.ScreenUpdating = False
+            SH1.Cells(RowCnt, 1).Font.Size = 9
+            RowCnt = RowCnt + 1
+            '-----下へスクロール-------
+            If RowCnt > 15 Then '20170725
+                 ActiveWindow.SmallScroll Down:=1 '20170725
+            Else '20170725
+            End If '20170725
+            'Sleep 1 '20200704
+        Loop
+Else
+End If
+Application.ScreenUpdating = False
+
+wb.Close (True)
+
+Set ws = Nothing '20200623
+Set wb = Nothing '20200623
+Set WBK = Nothing '20200623
+Set SH1 = Nothing '20200623
+
+n = n + RowCnt - 2
+
+Application.DisplayAlerts = False
+Application.ScreenUpdating = True
+Application.Calculation = xlCalculationAutomatic '20170725
+Application.EnableEvents = True '20170725
+End Sub
+Sub title_Copy()
+On Error GoTo 0 '20200625
+Application.ScreenUpdating = False
+
+Dim wb As Workbook
+Dim ws As Worksheet
+
+Set wb = Workbooks.Open(FileName:=FilePath & "\" & FileName)
+Set ws = wb.Worksheets("PLUM2_umetani" & -Year(Now) & -Month(Now) & -Day(Now)) '20200623
+
+Set WBK = ThisWorkbook '20200623
+Set SH1 = WBK.Worksheets(SH_name) '20200623
+
+'Application.ScreenUpdating = False 20200623
+
+Application.ScreenUpdating = False
+
+'ThisWorkbook.Sheets(SH_name).Rows(3).Copy 20200623削除
+SH1.Rows(3).Copy '20200623
+
+Application.ScreenUpdating = False
+'wb.Sheets("PLUM2_umetani" & -Year(Now) & -Month(Now) & -Day(Now)).Range("A1:K1").PasteSpecial Paste:=xlPasteAll 20200623削除
+ws.Range("A1:K1").PasteSpecial Paste:=xlPasteAll '20200623
+
+Application.DisplayAlerts = False
+
+'20200623 ws.追加
+ws.Cells(1, 17) = "休転時間"
+ws.Cells(1, 18) = "不良原因1" & Chr(10) & "     (枚)"
+ws.Cells(1, 19) = "不良原因2" & Chr(10) & "     (枚)"
+ws.Cells(1, 20) = "不良原因3" & Chr(10) & "     (枚)"
+ws.Cells(1, 21) = "不良原因4" & Chr(10) & "     (枚)"
+ws.Cells(1, 22) = "不良原因5" & Chr(10) & "     (枚)"
+ws.Cells(1, 23) = "不良原因6" & Chr(10) & "     (枚)"
+ws.Cells(1, 24) = "不良原因7" & Chr(10) & "     (枚)"
+ws.Cells(1, 25) = "不良原因8" & Chr(10) & "     (枚)"
+ws.Cells(1, 26) = "不良原因9" & Chr(10) & "     (枚)"
+ws.Cells(1, 27) = "不良原因10" & Chr(10) & "   10(枚)"
+
+Application.ScreenUpdating = False
+wb.Close (True)
+
+Set ws = Nothing '20200623
+Set wb = Nothing '20200623
+Set WBK = Nothing '20200623
+Set SH1 = Nothing '20200623
+
+Application.DisplayAlerts = False
+Application.CutCopyMode = False
+Application.ScreenUpdating = True
+End Sub
+
+'/////// ログファイルへの書き込み/////////
+Sub Write_Log(buf)
+On Error GoTo 0 '20200625
+Application.ScreenUpdating = False
+Dim wb As Workbook
+Dim ws As Worksheet
+Dim tmp As Variant
+Dim t As Variant
+Dim check As Variant
+
+Set wb = Workbooks.Open(FileName:=FilePath & "\" & FileName)
+Set ws = wb.Worksheets("PLUM2_umetani" & -Year(Now) & -Month(Now) & -Day(Now)) '20200623
+tmp = Split(buf, ",")
+
+'wb.Activate
+
+'Cells(n - 2, 1) = tmp(0)'シリアルＮｏ
+ ws.Cells(n - 2, 1) = n - 3 '連番
+'プログラム名
+
+'MsgBox ("1" & tmp(1))  'test用
+ws.Cells(n - 2, 2).NumberFormatLocal = "@" '20170719
+ws.Cells(n - 2, 2) = CVar(tmp(1)) '20170719
+'MsgBox ("2" & Cells(n - 2, 2)) 'test用
+
+'Cells(n - 2, 3).NumberFormatLocal = "@"
+        '開始時刻(時間のみ)
+        'Cells(n - 2, 3) = Mid(tmp(3), 1, 4) & "/" & Mid(tmp(3), 5, 2) & "/" & Mid(tmp(3), 7, 2) & "/" & Mid(tmp(3), 9, 2) & ":" & Mid(tmp(3), 11, 2) & ":" & Mid(tmp(3), 13, 2)
+        ws.Cells(n - 2, 3).NumberFormatLocal = "@"
+        ws.Cells(n - 2, 3) = Mid(tmp(3), 9, 2) & ":" & Mid(tmp(3), 11, 2) & ":" & Mid(tmp(3), 13, 2)
+        '終了時刻
+        'Cells(n - 2, 4) = Mid(tmp(4), 1, 4) & "/" & Mid(tmp(4), 5, 2) & "/" & Mid(tmp(4), 7, 2) & "/" & Mid(tmp(4), 9, 2) & ":" & Mid(tmp(4), 11, 2) & ":" & Mid(tmp(4), 13, 2)
+        ws.Cells(n - 2, 4).NumberFormatLocal = "@"
+        ws.Cells(n - 2, 4) = Mid(tmp(4), 9, 2) & ":" & Mid(tmp(4), 11, 2) & ":" & Mid(tmp(4), 13, 2)
+        '準備時間
+        ws.Cells(n - 2, 5).NumberFormatLocal = "h:mm:ss"
+        t = Right("00000" & tmp(5), 5)
+        check = Left(t, 1) & ":" & Mid(t, 2, 2) & ":" & Right(t, 2)
+        ws.Cells(n - 2, 5) = check
+       '稼動時間
+        ws.Cells(n - 2, 6).NumberFormatLocal = "h:mm:ss"
+        t = Right("00000" & tmp(6), 5)
+        check = Left(t, 1) & ":" & Mid(t, 2, 2) & ":" & Right(t, 2)
+        ws.Cells(n - 2, 6) = check
+        '停止時間
+        ws.Cells(n - 2, 7).NumberFormatLocal = "h:mm:ss"
+        t = Right("00000" & tmp(7), 5)
+        check = Left(t, 1) & ":" & Mid(t, 2, 2) & ":" & Right(t, 2)
+        ws.Cells(n - 2, 7) = check
+        '通紙枚数
+        ws.Cells(n - 2, 8) = tmp(2)
+       
+        '平均速度計算(通紙枚数÷稼動時間)
+       check = ws.Cells(n - 2, 6) * 24 * 60
+       If check = 0 Then
+       ws.Cells(n - 2, 9) = 0
+       Else
+       ws.Cells(n - 2, 9) = Application.WorksheetFunction.RoundDown((ws.Cells(n - 2, 8) / check), 0)
+       End If
+       
+      '運転時間計算 (準備時間 + 稼動時間 + 停止時間)
+       ws.Cells(n - 2, 10).NumberFormatLocal = "h:mm:ss"
+       ws.Cells(n - 2, 10) = ws.Cells(n - 2, 5) + ws.Cells(n - 2, 6) + ws.Cells(n - 2, 7)
+       '稼動率(稼動時間÷運転時間)
+       ws.Cells(n - 2, 11) = Application.WorksheetFunction.RoundDown(((ws.Cells(n - 2, 6) * 24 * 60) / (ws.Cells(n - 2, 10) * 24 * 60)) * 100, 1)
+        
+'        'Cells(n-2, 9) = tmp(8) '休転時間
+'        Cells(n - 2, 9).NumberFormatLocal = "h:mm:ss"
+'        t = Right("00000" & tmp(8), 5)
+'        check = Left(t, 1) & ":" & Mid(t, 2, 2) & ":" & Right(t, 2)
+'        Cells(n - 2, 9) = check
+'///以下、表示、読み込みは行わない。ログへの書き込みのみ
+'休転時間
+ws.Cells(n - 2, 17).NumberFormatLocal = "h:mm:ss"
+t = Right("00000" & tmp(8), 5)
+check = Left(t, 1) & ":" & Mid(t, 2, 2) & ":" & Right(t, 2)
+ws.Cells(n - 2, 17) = check
+
+ws.Cells(n - 2, 18) = tmp(9) '不良原因1
+ws.Cells(n - 2, 19) = tmp(10) '不良原因2
+ws.Cells(n - 2, 20) = tmp(11) '不良原因3
+ws.Cells(n - 2, 21) = tmp(12) '不良原因4
+ws.Cells(n - 2, 22) = tmp(13) '不良原因5
+ws.Cells(n - 2, 23) = tmp(14) '不良原因6
+ws.Cells(n - 2, 24) = tmp(15) '不良原因7
+ws.Cells(n - 2, 25) = tmp(16) '不良原因8
+ws.Cells(n - 2, 26) = tmp(17) '不良原因9
+ws.Cells(n - 2, 27) = tmp(18) '不良原因10
+'Columns("D").NumberFormatLocal = "@"
+'Columns("E").NumberFormatLocal = "@"
+
+Application.DisplayAlerts = False
+Application.ScreenUpdating = False
+wb.SaveAs FileName:=FilePath & "\" & FileName, FileFormat:=XlFileFormat.xlExcel8 '名前をつけて保存'20170721
+'Application.DisplayAlerts = False
+wb.Close (True)
+
+Set ws = Nothing '20200623
+Set wb = Nothing '20200623
+
+'Application.DisplayAlerts = True
+'Application.ScreenUpdating = True
+
+End Sub
+ 
+ '/////// モニター中表示灯/////////
+ Sub Lamp(StartFlag)
+ On Error GoTo 0 '20200625
+ SH_name = Month(Now) & -Day(Now)
+ 'ActiveSheet.Name = SH_name '20206023
+ 
+ Set WBK = ThisWorkbook '20200623
+ Set SH1 = WBK.Worksheets(SH_name) '20200623
+ 
+ If StartFlag = True Then
+ 
+' Worksheets(SH_name).Range("F1").Interior.Color = RGB(255, 102, 0)
+' Worksheets(SH_name).Range("F1").Font.ColorIndex = 2
+' Worksheets(SH_name).Range("F1") = "モニター中"
+' With Worksheets(SH_name).Range("F1")
+' .HorizontalAlignment = xlHAlignCenter
+' .VerticalAlignment = xlVAlignCenter
+ SH1.Range("F1").Interior.Color = RGB(255, 102, 0) '20200623
+ SH1.Range("F1").Font.ColorIndex = 2 '20200623
+ SH1.Range("F1") = "モニター中" '20200623
+ SH1.Range("F1").HorizontalAlignment = xlHAlignCenter '20200623
+ SH1.Range("F1").VerticalAlignment = xlVAlignCenter '20200623
+  
+'End With
+ Else
+   
+'   With Worksheets(SH_name).Range("F1")
+'    .HorizontalAlignment = xlHAlignCenter
+'    .VerticalAlignment = xlVAlignCenter
+
+ SH1.Range("F1").HorizontalAlignment = xlHAlignCenter '20200623
+ SH1.Range("F1").VerticalAlignment = xlVAlignCenter '20200623
+
+'End With
+ End If
+ 
+ Set SH1 = Nothing '20200623
+ Set WBK = Nothing '20200623
+ 
+ End Sub
+
+'総通紙枚数の出力用
+Sub Calc_Sheet_Num()
+On Error GoTo 0 '20200625
+Application.ScreenUpdating = False
+Cells(2, 8).Font.Size = 20
+Cells(2, 8).Font.Bold = False
+Dim All_Sheet_Num As Long
+Dim kensu As Long
+kensu = n
+All_Sheet_Num = 0
+
+Do
+    If kensu < 4 Then
+    Exit Do
+    Else
+    
+    All_Sheet_Num = All_Sheet_Num + Cells(kensu, 8) '8列目、通紙枚数を足していく
+    kensu = kensu - 1
+    End If
+    'Sleep 1 '20200704
+Loop
+
+Cells(2, 8) = All_Sheet_Num
+Application.ScreenUpdating = True
+End Sub
+Sub Calc_Ave_Speed()
+On Error GoTo 0 '20200625
+Application.ScreenUpdating = False
+Cells(2, 9).Font.Size = 20
+Cells(2, 9).Font.Bold = False
+Dim Speed_Ave As Long
+Dim kensu As Long
+Dim skip As Integer
+kensu = n
+Speed_Ave = 0
+skip = 0
+
+Do
+    If kensu < 4 Then
+    Exit Do
+    Else
+    
+    If Cells(kensu, 9) <> 0 Then
+        Speed_Ave = CLng(Speed_Ave + Cells(kensu, 9)) '9列目、平均速度を足していく
+        Else
+        skip = skip + 1
+        End If
+    kensu = kensu - 1
+    End If
+    'Sleep 1 '20200704
+Loop
+
+If (n - 4 + 1 - skip) > 0 Then 'オーバーフロー処理
+    Cells(2, 9) = CLng(Speed_Ave / (n - 4 + 1 - skip))
+Else
+    Cells(2, 9) = "0"
+End If
+Application.ScreenUpdating = True
+End Sub
+Sub JissekiToday()
+Call Calc_Sheet_Num
+Call Calc_Ave_Speed
+Call Calc_Unten_Time
+Call Calc_Ave_Kadou
+Call Jisseki_Write
+End Sub
+Sub Calc_Unten_Time()
+On Error GoTo 0 '20200625
+Application.ScreenUpdating = False
+Cells(2, 10).Font.Size = 10
+Cells(2, 10).Font.Bold = True
+Dim Unten_Time As Date
+Dim kensu As Long
+kensu = n
+Unten_Time = 0
+Cells(2, 10).NumberFormatLocal = "h:mm:ss"
+Do
+    If kensu < 4 Then
+    Exit Do
+    Else
+    Unten_Time = Unten_Time + Cells(kensu, 10) '10列目、運転時間を足していく
+    kensu = kensu - 1
+    End If
+    'Sleep 1 '20200704
+Loop
+
+ Cells(2, 10) = Unten_Time
+
+ End Sub
+Sub Calc_Ave_Kadou()
+On Error GoTo 0 '20200625
+Cells(2, 11).Font.Size = 20
+Cells(2, 11).Font.Bold = False
+Dim Kado_Ave As Long
+Dim kensu As Long
+Dim skip As Integer
+skip = 0
+kensu = n
+Kado_Ave = 0
+
+Do
+    Application.ScreenUpdating = False
+    If kensu < 4 Then
+    Exit Do
+    Else
+    If Cells(kensu, 11) <> 0 Then
+    Kado_Ave = CLng(Kado_Ave + Cells(kensu, 11)) '11列目、稼働率を足していく
+    Else
+    skip = skip + 1
+    End If
+    kensu = kensu - 1
+    End If
+    'Sleep 1 '20200704
+Loop
+
+If (n - 4 + 1 - skip) > 0 Then 'オーバーフロー処理
+    Application.ScreenUpdating = False
+    Cells(2, 11) = Application.WorksheetFunction.RoundDown(Kado_Ave / (n - 4 + 1 - skip), 2)
+Else
+Cells(2, 11) = "0"
+End If
+Application.ScreenUpdating = True
+End Sub
+
+Sub Jisseki_Write() '本日の実績をログエクセルシートへ書き込み
+On Error GoTo 0 '20200625
+
+SH_name = Month(Now) & -Day(Now)
+Set WBK = ThisWorkbook '20200623
+Set SH1 = WBK.Worksheets(SH_name) '20200623
+
+
+If Dir(FilePath & "\" & FileName) <> "" Then
+Application.ScreenUpdating = False
+SH1.Range(SH1.Cells(2, 8), SH1.Cells(2, 11)).Copy
+
+Dim wb As Workbook
+Dim ws As Worksheet '20200623
+Set wb = Workbooks.Open(FileName:=FilePath & "\" & FileName)
+Set ws = wb.Worksheets("PLUM2_umetani" & -Year(Now) & -Month(Now) & -Day(Now)) '20200623
+
+Application.ScreenUpdating = False
+wb.Activate
+ws.Cells(1, 12) = "総通紙枚数" '20200623 wb.を追加
+ws.Cells(1, 13) = "１日の平均速度" '20200623 wb.を追加
+ws.Cells(1, 14) = "運転時間平均" '20200623 wb.を追加
+ws.Cells(1, 15) = "稼動率平均" '20200623 wb.を追加
+Application.ScreenUpdating = False
+Application.EnableEvents = False '20170725
+'Range(Cells(2, 12), Cells(2, 15)).PasteSpecial Paste:=xlPasteAll
+ws.Range(ws.Cells(2, 12), ws.Cells(2, 15)).PasteSpecial Paste:=xlPasteValues '20200623 wb.を追加
+wb.Close (True)
+
+Application.ScreenUpdating = False
+
+'ThisWorkbook.Activate
+
+WBK.Activate '20200623
+
+'ti = Now + TimeValue("00:00:02") 'コピー出来たか分かるように
+Application.CutCopyMode = False
+
+Else
+End If
+Application.ScreenUpdating = True
+Application.EnableEvents = True '20170725
+
+Set ws = Nothing '20200623
+Set wb = Nothing '20200623
+Set SH1 = Nothing '20200623
+Set WBK = Nothing '20200623
+End Sub
+Sub Keisen_test(n) '罫線の作成test用
+On Error GoTo 0 '20200625
+Application.ScreenUpdating = False 'ちらつかせない
+
+Application.Calculation = xlCalculationManual '20170725
+Application.EnableEvents = False '20170725
+If n = 4 Then
+Application.ScreenUpdating = False 'ちらつかせない
+
+Application.Calculation = xlCalculationManual '20170725
+Application.EnableEvents = False '20170725
+With Selection.Borders(xlEdgeTop)
+    .LineStyle = xlContinuous
+    .Weight = xlMedium
+End With
+Application.ScreenUpdating = False 'ちらつかせない
+
+Application.Calculation = xlCalculationManual '20170725
+Application.EnableEvents = False '20170725
+With Selection.Borders(xlEdgeLeft)
+    .LineStyle = xlContinuous
+    .Weight = xlHairline
+End With
+Application.ScreenUpdating = False 'ちらつかせない
+
+Application.Calculation = xlCalculationManual '20170725
+Application.EnableEvents = False '20170725
+With Selection.Borders(xlEdgeRight)
+    .LineStyle = xlContinuous
+    .Weight = xlHairline
+End With
+Application.ScreenUpdating = False 'ちらつかせない
+
+Application.Calculation = xlCalculationManual '20170725
+Application.EnableEvents = False '20170725
+With Selection.Borders(xlInsideVertical)
+    .LineStyle = xlContinuous
+    .Weight = xlHairline
+ End With
+ Application.ScreenUpdating = False 'ちらつかせない
+ 
+ Application.Calculation = xlCalculationManual '20170725
+ Application.EnableEvents = False '20170725
+ With Selection.Borders(xlEdgeBottom)
+    .LineStyle = xlContinuous
+    .Weight = xlHairline
+ End With
+Else
+Application.ScreenUpdating = False 'ちらつかせない
+
+Application.Calculation = xlCalculationManual '20170725
+Application.EnableEvents = False '20170725
+With Selection.Borders(xlEdgeTop)
+    .LineStyle = xlContinuous
+    .Weight = xlHairline
+End With
+Application.ScreenUpdating = False 'ちらつかせない
+
+Application.Calculation = xlCalculationManual '20170725
+Application.EnableEvents = False '20170725
+With Selection.Borders(xlEdgeLeft)
+    .LineStyle = xlContinuous
+    .Weight = xlHairline
+End With
+Application.ScreenUpdating = False 'ちらつかせない
+
+Application.Calculation = xlCalculationManual '20170725
+Application.EnableEvents = False '20170725
+With Selection.Borders(xlEdgeRight)
+    .LineStyle = xlContinuous
+    .Weight = xlHairline
+End With
+Application.ScreenUpdating = False 'ちらつかせない
+
+Application.Calculation = xlCalculationManual '20170725
+Application.EnableEvents = False '20170725
+With Selection.Borders(xlInsideVertical)
+    .LineStyle = xlContinuous
+    .Weight = xlHairline
+ End With
+ Application.ScreenUpdating = False 'ちらつかせない
+
+ Application.Calculation = xlCalculationManual '20170725
+ Application.EnableEvents = False '20170725
+ With Selection.Borders(xlEdgeBottom)
+    .LineStyle = xlContinuous
+    .Weight = xlHairline
+ End With
+End If
+Application.ScreenUpdating = True
+Application.Calculation = xlCalculationAutomatic '20170725
+Application.EnableEvents = False '20170725
+End Sub
+Sub Keisen_read(RowCnt) '罫線の作成ReadLog用
+On Error GoTo 0 '20200625
+Application.ScreenUpdating = False 'ちらつかせない
+
+Application.Calculation = xlCalculationManual '20170725
+Application.EnableEvents = False '20170725
+
+
+If RowCnt + 2 = 4 Then
+Application.ScreenUpdating = False 'ちらつかせない
+
+Application.Calculation = xlCalculationManual '20170725
+Application.EnableEvents = False '20170725
+With Selection.Borders(xlEdgeTop)
+    .LineStyle = xlContinuous
+    .Weight = xlMedium
+End With
+Application.ScreenUpdating = False 'ちらつかせない
+
+Application.Calculation = xlCalculationManual '20170725
+Application.EnableEvents = False '20170725
+With Selection.Borders(xlEdgeLeft)
+    .LineStyle = xlContinuous
+    .Weight = xlHairline
+End With
+Application.ScreenUpdating = False 'ちらつかせない
+
+Application.Calculation = xlCalculationManual '20170725
+Application.EnableEvents = False '20170725
+With Selection.Borders(xlEdgeRight)
+    .LineStyle = xlContinuous
+    .Weight = xlHairline
+End With
+Application.ScreenUpdating = False 'ちらつかせない
+
+Application.Calculation = xlCalculationManual '20170725
+Application.EnableEvents = False '20170725
+With Selection.Borders(xlInsideVertical)
+    .LineStyle = xlContinuous
+    .Weight = xlHairline
+End With
+Application.ScreenUpdating = False 'ちらつかせない
+
+Application.Calculation = xlCalculationManual '20170725
+Application.EnableEvents = False '20170725
+With Selection.Borders(xlEdgeBottom)
+    .LineStyle = xlContinuous
+    .Weight = xlHairline
+End With
+Else
+Application.ScreenUpdating = False 'ちらつかせない
+
+Application.Calculation = xlCalculationManual '20170725
+Application.EnableEvents = False '20170725
+With Selection.Borders(xlEdgeTop)
+    .LineStyle = xlContinuous
+    .Weight = xlHairline
+End With
+Application.ScreenUpdating = False 'ちらつかせない
+
+Application.Calculation = xlCalculationManual '20170725
+Application.EnableEvents = False '20170725
+With Selection.Borders(xlEdgeLeft)
+    .LineStyle = xlContinuous
+    .Weight = xlHairline
+End With
+Application.ScreenUpdating = False 'ちらつかせない
+
+Application.Calculation = xlCalculationManual '20170725
+Application.EnableEvents = False '20170725
+With Selection.Borders(xlEdgeRight)
+    .LineStyle = xlContinuous
+    .Weight = xlHairline
+End With
+Application.ScreenUpdating = False 'ちらつかせない
+
+Application.Calculation = xlCalculationManual '20170725
+Application.EnableEvents = False '20170725
+With Selection.Borders(xlInsideVertical)
+    .LineStyle = xlContinuous
+    .Weight = xlHairline
+End With
+Application.ScreenUpdating = False 'ちらつかせない
+
+Application.Calculation = xlCalculationManual '20170725
+Application.EnableEvents = False '20170725
+With Selection.Borders(xlEdgeBottom)
+    .LineStyle = xlContinuous
+    .Weight = xlHairline
+End With
+End If
+'Application.ScreenUpdating = True'20200625削除
+Application.Calculation = xlCalculationAutomatic '20170725
+'Application.EnableEvents = True '20170725 '20200625削除
+End Sub
+Sub Gamen_Shokika()
+'Set ExcelApp = CreateObject("excel.application") '20200625
+
+On Error GoTo 0 '20200625
+SH_name = Month(Now) & -Day(Now)
+'ActiveSheet.Name = SH_name '20200623
+
+Set WBK = ThisWorkbook '20200623
+Set SH1 = WBK.Worksheets(SH_name) '20200623
+
+Application.ScreenUpdating = False
+
+'With Worksheets(SH_name).Range("F1")'20200623
+'    .HorizontalAlignment = xlHAlignCenter'20200623
+'    .VerticalAlignment = xlVAlignCenter'20200623
+'End With'20200623
+
+SH1.Range("F1").HorizontalAlignment = xlHAlignCenter '20200623
+SH1.Range("F1").VerticalAlignment = xlVAlignCenter '20200623
+
+Application.ScreenUpdating = False
+
+'全行削除処理
+'///////////////////////////////////////
+Dim i As Long
+i = 4
+Do
+    Application.ScreenUpdating = False 'ちらつかせない
+    Application.Calculation = xlCalculationManual '20170725
+    Application.EnableEvents = False '20170725
+    If SH1.Cells(i, 3) = "" Then '20200623 '20200623 SH1追加
+    Exit Do
+    Else
+    Application.ScreenUpdating = False
+    SH1.Range(SH1.Cells(i, 1), SH1.Cells(i, 11)).Clear
+    i = i + 1
+    End If
+    'Sleep 1 '20200704
+Loop
+'一日の平均を削除
+Application.ScreenUpdating = False
+SH1.Range(SH1.Cells(2, 8), SH1.Cells(2, 11)).Value = ""
+'モニター表示灯を白く
+SH1.Range("F1").Font.ColorIndex = 7 '20200623 SH1追加
+SH1.Range("F1") = "モニター" & Chr(10) & "停止中" '20200623 SH1追加
+SH1.Range("F1").Interior.Color = RGB(255, 255, 255) '20200623 SH1追加
+'///////////////////////////////////////
+
+Application.ScreenUpdating = True
+Application.Calculation = xlCalculationAutomatic '20170725
+Application.EnableEvents = True '20170725
+Set SH1 = Nothing '20200623
+Set WBK = Nothing '20200623
+End Sub
+Sub Workbook_BeforeClose()
+
+'ti = Now + TimeValue("00:00:01") '20200629
+On Error Resume Next '20200629
+Application.OnTime ti, "rename", , False '20200629
+
+
+
+Application.Quit
+
+On Error GoTo 0 '20200625
+'Set WBK = ThisWorkbook '20200623
+'Set SH1 = WBK.Worksheets(SH_name) '20200623
+
+Application.ScreenUpdating = False '20200625
+'上書きの確認をしない
+Application.DisplayAlerts = False
+Application.EnableEvents = False '20200625
+
+'他にブックが開いていなければ、Excelを終了する
+'If Workbooks.Count <= 1 Then
+
+'WBK.Saved = False '20200624
+'WBK.Close (True) '20200624
+'Set WBK = Nothing '20200624
+
+Application.Quit
+'ExcelApp.Quit '20200625
+
+'+++追加 '20170720
+
+'Application.OnTime ti, "rename", False '20170725
+
+'スケジュール取消
+'If blnend Then
+ '   Application.OnTime EarliestTime:=ti, Procedure:="rename", Schedule:=False
+'End If
+'---追加 '20170720
+
+'本ブックをClose
+'ThisWorkbook.Close SaveChanges:=True '20170720
+'WBK.Close (True) '20200623
+
+Set WBK = Nothing '20200623
+Set SH1 = Nothing '20200623
+
+End Sub
+
+Sub Auto_Close() '20200623に追加
+On Error GoTo 0 '20200625
+Call Gamen_Shokika
+
+
+'ti = Now + TimeValue("00:00:01") '20200629
+On Error Resume Next '20200629
+Application.OnTime ti, "rename", , False '20200629
+StartFlag = False '20200704
+
+Set WBK = ThisWorkbook '20200624
+On Error GoTo 0 '20200623
+ti = DateValue("1900/01/01") '20200623
+Application.ScreenUpdating = False '20200625
+Application.DisplayAlerts = False
+Application.EnableEvents = False '20200625
+
+WBK.Saved = False '20200624
+WBK.Close (True)
+
+Application.Quit '20200630
+ExcelApp.Quit '20200625
+
+
+
+Set WBK = Nothing '20200624
+Set ExcelApp = Nothing '20200625
+
+
+End Sub
+
+
